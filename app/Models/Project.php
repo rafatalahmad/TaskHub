@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model
 {
+    protected $fillable = [
+        'title',
+        'description',
+        'due_date',
+        'owner_id'
+    ];
 
     public function users()
     {
