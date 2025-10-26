@@ -112,17 +112,20 @@ class ProjectController extends Controller
     public function addMember(Request $request, Project $project)
     {
         $request->validate([
-            'user_id' => 'required|exists:users,id',
+            //'user_id' => 'required|exists:users,id',
+             'user_ids' => 'required|array',
+             'user_ids.*' => 'exists:users,id',
         ]);
 
         if (Auth::id() !== $project->owner_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $project->users()->attach($request->user_id);
+        $project->users()->syncWithoutDetaching($request->user_ids);
 
         return response()->json(['message' => 'Member added successfully'], 200);
     }
 
+                
 
 }
