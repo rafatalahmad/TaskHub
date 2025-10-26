@@ -126,6 +126,25 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Member added successfully'], 200);
     }
 
+    
+
+    public function removeMember(Request $request, Project $project)
+    {
+        $request->validate([
+             'user_ids' => 'required|array',
+             'user_ids.*' => 'exists:users,id',
+        ]);
+
+        if (Auth::id() !== $project->owner_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $project->users()->detach($request->user_ids);
+
+        return response()->json(['message' => 'Member removed successfully'], 200);
+    }
+
+
                 
 
 }

@@ -16,4 +16,5 @@ Route::post('logout',[AuthController::class,'logout'])->middleware('auth:sanctum
 Route::apiResource('projects',ProjectController::class)->middleware('auth:sanctum');
 
 Route::post('projects/{project}/add-member', [ProjectController::class, 'addMember'])->middleware('auth:sanctum');
+Route::delete('projects/{project}/remove-member', [ProjectController::class, 'removeMember'])->middleware('auth:sanctum');
 
