@@ -4,13 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use Dom\Comment;
-use Illuminate\Console\View\Components\Task;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use SebastianBergmann\CodeCoverage\Report\Xml\Project;
+
 
 class User extends Authenticatable
 {
@@ -63,11 +61,16 @@ class User extends Authenticatable
 
     public function projects()
     {
-        return $this->belongsToMany(User::class,'user__projects');
+        return $this->belongsToMany(Project::class,'user__projects');
     }
 
     public function activitys_logs()
     {
         return $this->hasMany(Activity_Log::class);
+    }
+
+      public function ownedProjects()
+    {
+        return $this->hasMany(Project::class, 'owner_id');
     }
 }

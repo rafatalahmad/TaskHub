@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -31,10 +32,12 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request)
     {
-        $user_id = Auth::user()->id;
+        //$user = Auth::user();
+        $user = $request->user();
         $validated = $request->validated();
-        $validated['owner_id'] = $user_id;
-        $project = Project::create($validated);
+        $validated['owner_id'] = $user->id;
+        $project = $user->projects()->create($validated);
+        // $user->projects()->attach($request->project_id);
         return response()->json([
             'message' => 'Project created successfully',
             'project' => $project
@@ -106,4 +109,20 @@ class ProjectController extends Controller
             'message' => 'Project deleted successfully'
         ], 200);
     }
+    public function addMember(Request $request, Project $project)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        if (Auth::id() !== $project->owner_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $project->users()->attach($request->user_id);
+
+        return response()->json(['message' => 'Member added successfully'], 200);
+    }
+
+
 }
