@@ -69,8 +69,20 @@ class User extends Authenticatable
         return $this->hasMany(Activity_Log::class);
     }
 
-      public function ownedProjects()
+    public function ownedProjects()
     {
         return $this->hasMany(Project::class, 'owner_id');
     }
+    public function ownedTasks()
+    {
+    return $this->hasManyThrough(
+        Task::class,     
+        Project::class,
+        'owner_id',      
+        'project_id',    
+        'id',            
+        'id'        
+    );
+    }
+
 }
