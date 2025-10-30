@@ -15,7 +15,10 @@ Route::post('login',[AuthController::class,'login']);
 Route::post('logout',[AuthController::class,'logout'])->middleware('auth:sanctum');
 
 Route::apiResource('projects',ProjectController::class)->middleware('auth:sanctum');
-
 Route::post('projects/{project}/add-member', [ProjectController::class, 'addMember'])->middleware('auth:sanctum');
+//Route::post('projects/{project_ id}/add-member', [ProjectController::class, 'addMember'])->middleware('auth:sanctum'); ليش اذا حطيت _id ما يشتغل
 Route::delete('projects/{project}/remove-member', [ProjectController::class, 'removeMember'])->middleware('auth:sanctum');
+
 Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->middleware('auth:sanctum');
+Route::get('projects/{project}/my-tasks', [TaskController::class, 'show'])->middleware('auth:sanctum');
+Route::get('projects/{project}/alltasks', [TaskController::class, 'index'])->middleware('auth:sanctum');

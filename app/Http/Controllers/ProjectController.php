@@ -118,7 +118,7 @@ class ProjectController extends Controller
         ]);
 
         if (Auth::id() !== $project->owner_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json(['message' => 'Unauthorized انت لست المالك'], 403);
         }
 
         $project->users()->syncWithoutDetaching($request->user_ids);
