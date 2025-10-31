@@ -15,26 +15,32 @@ class TaskController extends Controller
      */
 public function index(Project $project)
 {
-    try {
-            $user = Auth::user();
+    $user = Auth::user();
 
+    // تحقق إن المستخدم داخل المشروع
     $isOwner = $project->owner_id === $user->id;
     $isMember = $project->users->contains($user->id);
 
     if (!($isOwner || $isMember)) {
         return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
     }
-    $tasks = $project->tasks()->with('project')->get();
-    return response()->json([
-        'project' => $project->name,
-        'tasks' => $tasks
-    ], 200);
+
+    // إذا المالك -> يشوف كل المهام
+    if ($isOwner) {
+        $tasks = $project->tasks()->with('user')->get();
     } 
-    catch (\Exception $e) {
-        return response()->json(['message' => 'Project not found'], 404);
+    // إذا عضو -> يشوف فقط مهامه الخاصة
+    else {
+        $tasks = $project->tasks()->where('user_id', $user->id)->with('user')->get();
     }
 
+    return response()->json([
+        'project' => $project->name,
+        'role' => $isOwner ? 'owner' : 'member',
+        'tasks' => $tasks
+    ], 200);
 }
+
 
 
     /**
@@ -48,52 +54,43 @@ public function index(Project $project)
      * Store a newly created resource in storage.
      */
 
-    public function store(StoreTaskRequest $request, Project $project)
-    {
+public function store(StoreTaskRequest $request, Project $project)
+{
     $user = $request->user();
+
+    // تحقق أن المستخدم هو مالك المشروع
     if ($user->id !== $project->owner_id) {
-        return response()->json(['message' => 'Unauthorized ليس لديك مشروع'], 403);
+        return response()->json(['message' => 'Unauthorized - only the project owner can add tasks'], 403);
     }
-    
+
+    // التحقق من البيانات
     $validated = $request->validated();
-    $validated['user_id'] = $user->id;
-    $validated['project_id'] = $project->id;
-    $task = Task::create($validated);
-    return response()->json(['message' => 'Task created successfully',
-     'task' => $task], 201);
-   }
+
+    // تحقق أن المستخدم المُعيّن موجود داخل المشروع
+    if (!$project->users->contains($validated['user_id'])) {
+        return response()->json(['message' => 'User not part of this project'], 400);
+    }
+
+    // إنشاء المهمة وتعيينها للمستخدم المحدد
+    $task = $project->tasks()->create([
+        'title' => $validated['title'],
+        'description' => $validated['description'] ?? null,
+        'priority' => $validated['priority'] ?? 'medium',
+        'due_date' => $validated['due_date'] ?? null,
+        'status' => $validated['status'] ?? 'pending',
+        'user_id' => $validated['user_id'], // تعيين المستخدم
+    ]);
+
+    return response()->json(['message' => 'Task assigned successfully', 'task' => $task], 201);
+}
+
     /**
      * Display the specified resource.
      */
-
-// public function show(Project $project)
-// {
-//     $user = Auth::user();
-
-//     // تحقق إن المستخدم ضمن المشروع (مالك أو عضو)
-//     $isOwner = $project->owner_id === $user->id;
-//     $isMember = $project->users->contains($user->id);
-
-//     if (!($isOwner || $isMember)) {
-//         return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
-//     }
-
-//     // المالك يشوف كل المهام
-//     if ($isOwner) {
-//         $tasks = $project->tasks()->get();
-//     } 
-//     // العضو يشوف مهامه فقط
-//     else {
-//         $tasks = $project->tasks()->where('user_id', $user->id)->get();
-//     }
-
-//     return response()->json([
-//         'project' => $project->name,
-//         'message' => $isOwner ? 'All project tasks' : 'Your tasks in this project',
-//         'tasks' => $tasks
-//     ], 200);
-// }
-
+    public function show(string $id)
+    {
+        //
+    }
 
     /**
      * Show the form for editing the specified resource.
@@ -106,16 +103,66 @@ public function index(Project $project)
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
-    {
-        //
+public function update(StoreTaskRequest $request, Project $project, string $id)
+{
+    $user = Auth::user();
+
+    // تحقق إن المستخدم هو المالك فقط
+    if ($project->owner_id !== $user->id) {
+        return response()->json(['message' => 'Unauthorized - only project owner can update tasks'], 403);
     }
+
+    // ابحث عن المهمة داخل المشروع
+    $task = $project->tasks()->where('id', $id)->first();
+
+    if (!$task) {
+        return response()->json(['message' => 'Task not found'], 404);
+    }
+
+    // التحقق من القيم الجديدة (validation)
+    $validated = $request->validated();
+
+    // لو المالك بدو يغيّر المستخدم المعيّن للمهمة
+    if (isset($validated['user_id'])) {
+        // تأكد أن المستخدم موجود ضمن أعضاء المشروع
+        if (!$project->users->contains($validated['user_id'])) {
+            return response()->json(['message' => 'User not part of this project'], 400);
+        }
+    }
+
+    // تنفيذ التحديث
+    $task->update($validated);
+
+    return response()->json([
+        'message' => 'Task updated successfully by project owner',
+        'task' => $task
+    ], 200);
+}
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-        //
+  public function destroy(Project $project, string $id)
+{
+    $user = Auth::user();
+
+    // تحقق إن المستخدم هو المالك فقط
+    if ($project->owner_id !== $user->id) {
+        return response()->json(['message' => 'Unauthorized - only project owner can delete tasks'], 403);
     }
+
+    // ابحث عن المهمة داخل المشروع
+    $task = $project->tasks()->where('id', $id)->first();
+
+    if (!$task) {
+        return response()->json(['message' => 'Task not found'], 404);
+    }
+
+    // احذف المهمة
+    $task->delete();
+
+    return response()->json(['message' => 'Task deleted successfully'], 200);
+}
+
 }

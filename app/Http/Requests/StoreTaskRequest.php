@@ -19,14 +19,16 @@ class StoreTaskRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
-    {
-        return [
-            'title' => 'required|string|max:50',
-            'description' => 'nullable|string',
-            'priority' => 'required|in:low,medium,high',
-            'status' => 'required|in:pending,in_progress,completed',
-            'due_date' => 'nullable|date',
-        ];
-    }
+public function rules(): array
+{
+    return [
+        'title' => 'required|string|max:50',
+        'description' => 'nullable|string',
+        'priority' => 'nullable|in:low,medium,high',
+        'status' => 'nullable|in:pending,in_progress,completed',
+        'due_date' => 'nullable|date',
+        'user_id' => 'required|exists:users,id' // المستخدم المطلوب تعيين المهمة له
+    ];
+}
+
 }
