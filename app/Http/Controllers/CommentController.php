@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Task;
+use App\Notifications\NewCommentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -43,8 +44,21 @@ public function store(Request $request, Task $task)
         'user_id' => $user->id,
         'content' => $request->content,
     ]);
+    // إشعار لصاحب المهمة
+    $taskOwner = $task->user; // المستخدم المعيّن للمهمة
+    if ($taskOwner && $taskOwner->id !== $user->id) {
+       $taskOwner->notify(new NewCommentNotification($comment));
+   }
 
     return response()->json(['message' => 'Comment added successfully', 'comment' => $comment], 201);
+    $comment = Comment::create([
+    'task_id' => $task->id,
+    'user_id' => $user->id,
+    'content' => $request->content,
+]);
+
+
+
 }
 
 

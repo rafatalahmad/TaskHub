@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTaskRequest;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -75,8 +77,14 @@ public function store(StoreTaskRequest $request, Project $project)
         'status' => $validated['status'] ?? 'pending',
         'user_id' => $validated['user_id'], 
     ]);
+    $assignedUser = User::find($validated['user_id']);
+    if ($assignedUser) {
+         $assignedUser->notify(new TaskAssignedNotification($task));
+    }
 
     return response()->json(['message' => 'Task assigned successfully', 'task' => $task], 201);
+
+
 }
 
     /**
@@ -151,5 +159,43 @@ public function update(StoreTaskRequest $request, Project $project, string $id)
 
     return response()->json(['message' => 'Task deleted successfully'], 200);
 }
+    /**
+     * Upload a file and attach it to the specified task.
+     */
+public function uploadFile(Request $request, Task $task)
+{
+    $user = $request->user();
+
+    // التحقق من صلاحية المستخدم
+    $project = $task->project; // المشروع اللي تتبع له المهمة
+
+    $isOwner = $project->owner_id === $user->id; // المالك
+    $isAssignedUser = $task->user_id === $user->id; // المكلّف بالمهمة
+
+    // فقط المالك أو العضو المكلّف بالمهمة مسموح له بالرفع
+    if (!($isOwner || $isAssignedUser)) {
+        return response()->json(['message' => 'Unauthorized - you cannot upload files for this task'], 403);
+    }
+
+    // التحقق من الملف
+    $request->validate([
+        'file' => 'required|file|max:10240', // 10MB كحد أقصى
+    ]);
+
+    // رفع الملف
+    $media=$task->addMediaFromRequest('file')->toMediaCollection('attachments');
+
+    return response()->json([
+        'message' => 'File uploaded successfully',
+        'id' => $media->id,
+        'file_name' => $media->file_name,
+        'url' => $media->getUrl(),
+        'created_at' => $media->created_at,
+        'size' => $media->size,
+
+    ], 200);
+}
+
+
 
 }
