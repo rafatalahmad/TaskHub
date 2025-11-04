@@ -166,23 +166,19 @@ public function uploadFile(Request $request, Task $task)
 {
     $user = $request->user();
 
-    // التحقق من صلاحية المستخدم
-    $project = $task->project; // المشروع اللي تتبع له المهمة
+    $project = $task->project;
 
-    $isOwner = $project->owner_id === $user->id; // المالك
-    $isAssignedUser = $task->user_id === $user->id; // المكلّف بالمهمة
+    $isOwner = $project->owner_id === $user->id; 
+    $isAssignedUser = $task->user_id === $user->id; 
 
-    // فقط المالك أو العضو المكلّف بالمهمة مسموح له بالرفع
     if (!($isOwner || $isAssignedUser)) {
         return response()->json(['message' => 'Unauthorized - you cannot upload files for this task'], 403);
     }
 
-    // التحقق من الملف
     $request->validate([
-        'file' => 'required|file|max:10240', // 10MB كحد أقصى
+        'file' => 'required|file|max:10240', 
     ]);
 
-    // رفع الملف
     $media=$task->addMediaFromRequest('file')->toMediaCollection('attachments');
 
     return response()->json([
