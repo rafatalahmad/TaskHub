@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ Route::get('projects/{project}/alltasks', [TaskController::class, 'index'])->mid
 Route::put('projects/{project}/tasks/{id}', [TaskController::class, 'update'])->middleware('auth:sanctum');
 Route::delete('projects/{project}/tasks/{id}', [TaskController::class, 'destroy'])->middleware('auth:sanctum');
 Route::post('tasks/{task}/upload', [TaskController::class, 'uploadFile'])->middleware('auth:sanctum');
+Route::get('projects/{project}/tasks/filter', [TaskController::class, 'filter'])->middleware('auth:sanctum');
+Route::get('tasks/{task}/activity-log', [TaskController::class, 'activityLog'])->middleware('auth:sanctum');
 
 
 Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->middleware('auth:sanctum');
@@ -36,5 +39,8 @@ Route::delete('tasks/{task}/comments/{comment}', [CommentController::class, 'des
 Route::get('notifications', function () {
     return Auth::user()->notifications;
 })->middleware('auth:sanctum');
+
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth:sanctum');
+
 
 

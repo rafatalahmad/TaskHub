@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTaskRequest;
+use App\Models\Activity_Log;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -77,6 +78,12 @@ public function store(StoreTaskRequest $request, Project $project)
         'status' => $validated['status'] ?? 'pending',
         'user_id' => $validated['user_id'], 
     ]);
+    Activity_Log::create([
+    'task_id' => $task->id,
+    'user_id' => Auth::id(),
+    'action' => 'created', 
+    ]);
+
     $assignedUser = User::find($validated['user_id']);
     if ($assignedUser) {
          $assignedUser->notify(new TaskAssignedNotification($task));
@@ -130,6 +137,11 @@ public function update(StoreTaskRequest $request, Project $project, string $id)
     }
 
     $task->update($validated);
+    Activity_Log::create([
+    'task_id' => $task->id,
+    'user_id' => Auth::id(),
+    'action' => 'updated',
+    ]);
 
     return response()->json([
         'message' => 'Task updated successfully by project owner',
@@ -156,6 +168,11 @@ public function update(StoreTaskRequest $request, Project $project, string $id)
     }
 
     $task->delete();
+    Activity_Log::create([
+    'task_id' => $task->id,
+    'user_id' => Auth::id(),
+    'action' => 'deleted', 
+    ]);
 
     return response()->json(['message' => 'Task deleted successfully'], 200);
 }
@@ -192,6 +209,61 @@ public function uploadFile(Request $request, Task $task)
     ], 200);
 }
 
+public function activityLog(Task $task)
+{
+    $logs = $task->activities()->with('user')->latest()->get();
+
+    return response()->json(['activity' => $logs]);
+}
+
+public function filter(Request $request, Project $project)
+{
+    $user = Auth::user();
+
+    // تحقق أن المستخدم جزء من المشروع
+    $isOwner = $project->owner_id === $user->id;
+    $isMember = $project->users->contains($user->id);
+
+    if (!($isOwner || $isMember)) {
+        return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
+    }
+
+    // لو المستخدم هو المالك، يشوف كل المهام
+    $query = $project->tasks()->with('user');
+
+    // لو المستخدم عضو فقط، يشوف مهامه فقط
+    if (!$isOwner) {
+        $query->where('user_id', $user->id);
+    }
+
+    // فلترة بالعنوان
+    if ($request->has('title')) {
+        $query->where('title', 'like', '%' . $request->title . '%');
+    }
+
+    // فلترة بالحالة
+    if ($request->has('status')) {
+        $query->where('status', $request->status);
+    }
+
+    // فلترة بالأولوية
+    if ($request->has('priority')) {
+        $query->where('priority', $request->priority);
+    }
+
+    // فلترة بالمهام المتأخرة
+    if ($request->has('overdue') && $request->overdue == true) {
+        $query->where('due_date', '<', now())
+              ->where('status', '!=', 'completed');
+    }
+
+    $tasks = $query->get();
+
+    return response()->json([
+        'project' => $project->name,
+        'filtered_tasks' => $tasks
+    ], 200);
+}
 
 
 }
