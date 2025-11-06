@@ -29,7 +29,7 @@ Route::delete('projects/{project}/tasks/{id}', [TaskController::class, 'destroy'
 Route::post('tasks/{task}/upload', [TaskController::class, 'uploadFile'])->middleware('auth:sanctum');
 Route::get('projects/{project}/tasks/filter', [TaskController::class, 'filter'])->middleware('auth:sanctum');
 Route::get('tasks/{task}/activity-log', [TaskController::class, 'activityLog'])->middleware('auth:sanctum');
-
+Route::post('tasks/{task}/updateStatus', [TaskController::class, 'updateStatus'])->middleware('auth:sanctum');
 
 Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->middleware('auth:sanctum');
 Route::get('tasks/{task}/comments', [CommentController::class, 'index'])->middleware('auth:sanctum');

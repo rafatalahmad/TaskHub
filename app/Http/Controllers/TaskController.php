@@ -220,7 +220,6 @@ public function filter(Request $request, Project $project)
 {
     $user = Auth::user();
 
-    // تحقق أن المستخدم جزء من المشروع
     $isOwner = $project->owner_id === $user->id;
     $isMember = $project->users->contains($user->id);
 
@@ -228,30 +227,24 @@ public function filter(Request $request, Project $project)
         return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
     }
 
-    // لو المستخدم هو المالك، يشوف كل المهام
     $query = $project->tasks()->with('user');
 
-    // لو المستخدم عضو فقط، يشوف مهامه فقط
     if (!$isOwner) {
         $query->where('user_id', $user->id);
     }
 
-    // فلترة بالعنوان
     if ($request->has('title')) {
         $query->where('title', 'like', '%' . $request->title . '%');
     }
 
-    // فلترة بالحالة
     if ($request->has('status')) {
         $query->where('status', $request->status);
     }
 
-    // فلترة بالأولوية
     if ($request->has('priority')) {
         $query->where('priority', $request->priority);
     }
 
-    // فلترة بالمهام المتأخرة
     if ($request->has('overdue') && $request->overdue == true) {
         $query->where('due_date', '<', now())
               ->where('status', '!=', 'completed');
@@ -264,6 +257,38 @@ public function filter(Request $request, Project $project)
         'filtered_tasks' => $tasks
     ], 200);
 }
+
+public function updateStatus(Request $request, Task $task)
+    {
+        $user = Auth::user();
+        $data = $request->validated([
+            'status' => 'required|string|in:pending,in-progress,completed',
+        ]); 
+
+        $isAssignedUser = $task->user_id == $user->id;
+
+        if (!$isAssignedUser) {
+            return response()->json(['message' => 'You are not authorized to update this task status.'], 403);
+        }
+
+        $oldStatus = $task->status;
+        $newStatus = $data['status'];
+
+        $task->update(['status' => $newStatus]);
+
+        if ($oldStatus == $newStatus) {
+            return response()->json('No status change detected.', 200);
+        }
+        Task::create([
+            'status' => $newStatus
+        ]);
+        Activity_Log::create([
+            'task_id' => $task->id,
+            'user_id' => $user->id, 
+            'action' => "changed status from '{$oldStatus}' to '{$newStatus}'"
+        ]);
+        return response()->json($task);
+    }
 
 
 }
