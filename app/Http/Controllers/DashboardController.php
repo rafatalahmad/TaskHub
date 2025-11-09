@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -11,29 +10,39 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
-        $assignedTasksCount = $user->tasks->count();
-        
-        $completedTasksCount = $user->tasks->where('status', 'completed')->count();
-       
-        $activeProjectsCount = $user->projects->count();
 
-        $ownedProjects = $user->ownedProjects->count();
-    
-        $overdueTasksCount = $user->tasks
+        // عدد المهام
+        $totalTasks = $user->tasks->count();
+        $completedTasks = $user->tasks->where('status', 'completed')->count();
+        $activeProjects = $user->projects->count() + $user->ownedProjects->count();
+        $overdueTasks = $user->tasks
             ->where('status', '!=', 'completed')
-            ->where('due_date', '<', Carbon::now())//??
+            ->where('due_date', '<', Carbon::now())
             ->count();
+
+        $productivity = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 2) : 0;
+
+        $quotes = [
+            "ابدأ يومك بطاقة إيجابية وهدف واضح!",
+            "كل خطوة صغيرة اليوم تقرّبك من حلمك.",
+            "الإنجاز لا يحتاج حظًا، بل استمرارية.",
+            "أنت أقوى مما تعتقد، استمر!"
+        ];
+        $randomQuote = $quotes[array_rand($quotes)];
+
+        $streakDays = $user->streak_days ?? 0;
 
         return response()->json([
             'user' => $user->name,
             'stats' => [
-                'assigned_tasks' => $assignedTasksCount,
-                'completed_tasks' => $completedTasksCount,
-                'active_projects' => $activeProjectsCount,
-                'overdue_tasks' => $overdueTasksCount,
-                'owned_projects' => $ownedProjects,
-            ]
+                'total_tasks' => $totalTasks,
+                'completed_tasks' => $completedTasks,
+                'productivity_score' => $productivity,
+                'active_projects' => $activeProjects,
+                'overdue_tasks' => $overdueTasks,
+                'daily_streak_days' => $streakDays,
+            ],
+            'quote_of_the_day' => $randomQuote,
         ]);
     }
 }

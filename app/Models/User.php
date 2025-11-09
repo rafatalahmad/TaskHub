@@ -85,4 +85,17 @@ class User extends Authenticatable
     );
     }
 
+    public function getProductivityScoreAttribute()
+{
+    $totalTasks = $this->tasks()->count();
+    $completedTasks = $this->tasks()->where('status', 'completed')->count();
+
+    if ($totalTasks === 0) {
+        return 0;
+    }
+
+    return round(($completedTasks / $totalTasks) * 100, 2); // نسبة مئوية
+}
+
+
 }

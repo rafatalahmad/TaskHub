@@ -23,7 +23,7 @@ Route::post('projects/{project}/add-member', [ProjectController::class, 'addMemb
 Route::delete('projects/{project}/remove-member', [ProjectController::class, 'removeMember'])->middleware('auth:sanctum');
 
 Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->middleware('auth:sanctum');
-Route::get('projects/{project}/alltasks', [TaskController::class, 'index'])->middleware('auth:sanctum');
+Route::get('tasks', [TaskController::class, 'index'])->middleware('auth:sanctum');
 Route::put('projects/{project}/tasks/{id}', [TaskController::class, 'update'])->middleware('auth:sanctum');
 Route::delete('projects/{project}/tasks/{id}', [TaskController::class, 'destroy'])->middleware('auth:sanctum');
 Route::post('tasks/{task}/upload', [TaskController::class, 'uploadFile'])->middleware('auth:sanctum');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTaskRequest;
+use App\Http\Resources\TaskResources;
 use App\Models\Activity_Log;
 use App\Models\Project;
 use App\Models\Task;
@@ -16,34 +17,50 @@ class TaskController extends Controller
     /**
      * Display a listing of the resource.
      */
-public function index(Project $project)
-{
-    $user = Auth::user();
 
-    $isOwner = $project->owner_id === $user->id;
-    $isMember = $project->users->contains($user->id);
+public function index(Request $request)
+    {
+        $user = $request->user();
+        $userId = $user->id;
 
-    if (!($isOwner || $isMember)) {
-        return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
+        $ownedProjectIds = $user->ownedProjects()->pluck('id');
+
+        $memberProjectIds = $user->projects()->pluck('projects.id');
+        
+        $query = Task::with('project.owner', 'user') 
+            ->where(function ($q) use ($ownedProjectIds, $memberProjectIds, $userId) {
+
+                
+                $q->whereIn('project_id', $ownedProjectIds);
+
+            
+                $q->orWhere(function ($subQuery) use ($memberProjectIds, $userId) {
+                    $subQuery->whereIn('project_id', $memberProjectIds)
+                             ->where('user_id', $userId); 
+                });
+            });
+
+        $query->when($request->has('status'), function ($q) use ($request) {
+            return $q->where('status', $request->input('status'));
+        });
+      
+        $query->when($request->has('priority'), function ($q) use ($request) {
+            return $q->where('priority', $request->input('priority'));
+        });
+
+        $query->when($request->has('search'), function ($q) use ($request) {
+            $searchTerm = $request->input('search');
+            return $q->where(function ($subQuery) use ($searchTerm) {
+                $subQuery->where('title', 'like', "%{$searchTerm}%")
+                         ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        });
+        
+        $tasks = $query->latest()->paginate(10); 
+
+        return TaskResources::collection($tasks);
+
     }
-
-    if ($isOwner) {
-        $tasks = $project->tasks()->with('user')->get();
-    } 
-
-    else {
-        $tasks = $project->tasks()->where('user_id', $user->id)->with('user')->get();
-    }
-
-    return response()->json([
-        'project' => $project->name,
-        'role' => $isOwner ? 'owner' : 'member',
-        'tasks' => $tasks
-    ], 200);
-}
-
-
-
     /**
      * Show the form for creating a new resource.
      */
@@ -216,79 +233,53 @@ public function activityLog(Task $task)
     return response()->json(['activity' => $logs]);
 }
 
-public function filter(Request $request, Project $project)
+public function updateStatus(Request $request, Task $task)
 {
     $user = Auth::user();
 
-    $isOwner = $project->owner_id === $user->id;
-    $isMember = $project->users->contains($user->id);
+    $data = $request->validate([
+        'status' => 'required|string|in:pending,in-progress,completed',
+    ]);
 
-    if (!($isOwner || $isMember)) {
-        return response()->json(['message' => 'Unauthorized - not part of this project'], 403);
+    $isAssignedUser = $task->user_id == $user->id;
+
+    if (!$isAssignedUser) {
+        return response()->json(['message' => 'You are not authorized to update this task status.'], 403);
     }
 
-    $query = $project->tasks()->with('user');
+    $oldStatus = $task->status;
+    $newStatus = $data['status'];
 
-    if (!$isOwner) {
-        $query->where('user_id', $user->id);
+    $task->update(['status' => $newStatus]);
+
+    if ($oldStatus == $newStatus) {
+        return response()->json('No status change detected.', 200);
     }
 
-    if ($request->has('title')) {
-        $query->where('title', 'like', '%' . $request->title . '%');
+    if ($newStatus === 'completed') {
+        $today = now()->toDateString();
+        $lastDate = $user->last_completed_task_date;
+
+        if ($lastDate === $today) {
+        } elseif ($lastDate === now()->subDay()->toDateString()) {
+            $user->streak_days += 1;
+            $user->last_completed_task_date = $today;
+        } else {
+            $user->streak_days = 1;
+            $user->last_completed_task_date = $today;
+        }
+        $user->save;
     }
 
-    if ($request->has('status')) {
-        $query->where('status', $request->status);
-    }
+    Activity_Log::create([
+        'task_id' => $task->id,
+        'user_id' => $user->id, 
+        'action' => "changed status from '{$oldStatus}' to '{$newStatus}'"
+    ]);
 
-    if ($request->has('priority')) {
-        $query->where('priority', $request->priority);
-    }
-
-    if ($request->has('overdue') && $request->overdue == true) {
-        $query->where('due_date', '<', now())
-              ->where('status', '!=', 'completed');
-    }
-
-    $tasks = $query->get();
-
-    return response()->json([
-        'project' => $project->name,
-        'filtered_tasks' => $tasks
-    ], 200);
+    return response()->json($task);
 }
 
-public function updateStatus(Request $request, Task $task)
-    {
-        $user = Auth::user();
-        $data = $request->validated([
-            'status' => 'required|string|in:pending,in-progress,completed',
-        ]); 
-
-        $isAssignedUser = $task->user_id == $user->id;
-
-        if (!$isAssignedUser) {
-            return response()->json(['message' => 'You are not authorized to update this task status.'], 403);
-        }
-
-        $oldStatus = $task->status;
-        $newStatus = $data['status'];
-
-        $task->update(['status' => $newStatus]);
-
-        if ($oldStatus == $newStatus) {
-            return response()->json('No status change detected.', 200);
-        }
-        Task::create([
-            'status' => $newStatus
-        ]);
-        Activity_Log::create([
-            'task_id' => $task->id,
-            'user_id' => $user->id, 
-            'action' => "changed status from '{$oldStatus}' to '{$newStatus}'"
-        ]);
-        return response()->json($task);
-    }
 
 
 }
