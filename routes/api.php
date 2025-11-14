@@ -42,5 +42,8 @@ Route::get('notifications', function () {
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth:sanctum');
 
+Route::get('project/all', [ProjectController::class, 'show_all_proj'])->middleware(['auth:sanctum', 'isadmin']);
+Route::post('/register', [AuthController::class, 'Register']);
+Route::post('/profile/update', [AuthController::class, 'updateProfile'])->middleware('auth:sanctum');
 
 

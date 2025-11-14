@@ -18,6 +18,13 @@ class ProjectController extends Controller
     {
         //
     }
+       public function show_all_proj()
+    {
+        $projects = Project::all();
+        return response()->json([
+            'projects' => $projects
+        ], 200);
+    }
 
     /**
      * Show the form for creating a new resource.
