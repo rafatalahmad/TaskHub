@@ -16,7 +16,7 @@ class Project extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class,'user__projects', 'project_id', 'user_id');
+        return $this->belongsToMany(User::class,'user__projects', 'project_id', 'user_id')->withTimestamps();
     }
 
     public function owner()

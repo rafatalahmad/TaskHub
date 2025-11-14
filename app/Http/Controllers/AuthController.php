@@ -64,10 +64,9 @@ public function Register(Request $request)
        return response()->json(['Logout successfully'],201);
 
     }
-
     public function updateProfile(Request $request)
 {
-    $user = Auth::user();
+    $user =$request->user();
 
     $request->validate([
         'name' => 'sometimes|string|max:40',
@@ -76,25 +75,36 @@ public function Register(Request $request)
         'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
     ]);
 
+    $data = [];
+
+    if ($request->has('name')) {
+        $data['name'] = $request->name;
+    }
+
+    if ($request->has('email')) {
+        $data['email'] = $request->email;
+    }
+
+    if ($request->has('password')) {
+        $data['password'] = Hash::make($request->password);
+    }
+    
     if ($request->hasFile('image')) {
-        
+
         if ($user->image && file_exists(storage_path('app/public/' . $user->image))) {
             unlink(storage_path('app/public/' . $user->image));
         }
 
-        $user->image = $request->file('image')->store('avatars', 'public');
+        $data['image'] = $request->file('image')->store('avatars', 'public');
     }
-
-    if ($request->has('name')) $user->name = $request->name;
-    if ($request->has('email')) $user->email = $request->email;
-    if ($request->has('password')) $user->password = Hash::make($request->password);
-
-    $user->save;
+    $user->update($data);
 
     return response()->json([
         'message' => 'Profile updated successfully',
         'user' => $user
     ]);
 }
+
+
 
 }

@@ -11,7 +11,6 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // عدد المهام
         $totalTasks = $user->tasks->count();
         $completedTasks = $user->tasks->where('status', 'completed')->count();
         $activeProjects = $user->projects->count() + $user->ownedProjects->count();

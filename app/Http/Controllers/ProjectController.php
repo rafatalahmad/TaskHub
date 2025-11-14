@@ -116,6 +116,7 @@ class ProjectController extends Controller
             'message' => 'Project deleted successfully'
         ], 200);
     }
+    
     public function addMember(Request $request, Project $project)
     {
         $request->validate([
